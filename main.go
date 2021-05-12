@@ -13,18 +13,28 @@ import (
 	ytdl "github.com/kkdai/youtube/v2/downloader"
 )
 
+const address = ":1234"
+
 func main() {
 	http.HandleFunc("/", ytdlHandler)
-	log.Println(http.ListenAndServe(":8080", nil))
-	log.Println("Youtube Downloader running on :8080")
+	log.Println("Youtube Downloader running on ", address)
+	log.Println(http.ListenAndServe(address, nil))
 }
 
 func ytdlHandler(w http.ResponseWriter, r *http.Request) {
 	v := r.URL.Query().Get("v")
+	p720 := r.URL.Query().Get("720p")
+	p1080 := r.URL.Query().Get("1080p")
 	q := r.URL.Query().Get("q")
 	if v == "" {
 		http.Error(w, "Hello world!\n", http.StatusBadRequest)
 	} else {
+		if p720 == "on" {
+			q = "hd720"
+		}
+		if p1080 == "on" {
+			q = "hd1080"
+		}
 		if err := Download(v, q); err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 		}
