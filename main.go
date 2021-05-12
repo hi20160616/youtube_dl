@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"fmt"
-	"io"
 	"log"
 	"net/http"
 	"os"
@@ -15,21 +14,20 @@ import (
 )
 
 func main() {
-	// Hello world, the web server
-
-	helloHandler := func(w http.ResponseWriter, req *http.Request) {
-		io.WriteString(w, "Hello, world!\n")
-	}
-
-	http.HandleFunc("/", helloHandler)
-	log.Fatal(http.ListenAndServe(":8080", nil))
+	http.HandleFunc("/", ytdlHandler)
+	log.Println(http.ListenAndServe(":8080", nil))
+	log.Println("Youtube Downloader running on :8080")
 }
 
 func ytdlHandler(w http.ResponseWriter, r *http.Request) {
 	v := r.URL.Query().Get("v")
 	q := r.URL.Query().Get("q")
-	if err := Download(v, q); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+	if v == "" {
+		http.Error(w, "Hello world!\n", http.StatusBadRequest)
+	} else {
+		if err := Download(v, q); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+		}
 	}
 }
 
