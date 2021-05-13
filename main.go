@@ -61,15 +61,12 @@ func Download(src string, quality string) error {
 		}
 		return dl.DownloadComposite(context.Background(), "", v, quality, "mp4")
 	}
-
 	return dl.Download(context.Background(), v, vfmt, "")
 }
 
 func checkFFMPEG() error {
-	fmt.Println("check ffmpeg is installed....")
 	if err := exec.Command("ffmpeg", "-version").Run(); err != nil {
 		return fmt.Errorf("please check ffmpegCheck is installed correctly")
 	}
-
 	return nil
 }
