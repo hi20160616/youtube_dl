@@ -10,15 +10,30 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/kkdai/youtube/v2"
 	ytdl "github.com/kkdai/youtube/v2/downloader"
+	"golang.org/x/sync/errgroup"
 )
 
 const address = ":1234"
 
 func main() {
-	http.HandleFunc("/", ytdlHandler)
-	log.Println("Youtube Downloader running on ", address)
-	log.Println(http.ListenAndServe(address, nil))
+	ctx, cancel := context.WithCancel(context.Background())
+	g, ctx := errgroup.WithContext(ctx)
+
+	// Web goroutine
+	g.Go(func() error {
+		defer cancel()
+		http.HandleFunc("/", ytdlHandler)
+		log.Println("Youtube Downloader running on ", address)
+		return http.ListenAndServe(address, nil)
+	})
+
+	// Download
+	g.Go(func() error {
+		defer cancel()
+		return treatJobs()
+	})
 }
 
 func ytdlHandler(w http.ResponseWriter, r *http.Request) {
@@ -27,16 +42,53 @@ func ytdlHandler(w http.ResponseWriter, r *http.Request) {
 	if v == "" {
 		http.Error(w, "Hello world!\n", http.StatusBadRequest)
 	} else {
-		if err := Download(v, q); err != nil {
+		id, err := youtube.ExtractVideoID(v)
+		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
+		}
+		// jobs <- map[string]string{id: q}
+		jobs[id] = q
+	}
+}
+
+var (
+	jobs = make(map[string]string)
+	sema = make(chan struct{}, 1)
+)
+
+func treatJobs() error {
+	for {
+		for v, q := range jobs {
+			sema <- struct{}{}
+			if err := download(v, q); err != nil {
+				log.Println(err)
+			}
+			<-sema
 		}
 	}
 }
 
-// Download will download youtube video by src and qulity,
+// var jobs chan map[string]string = make(chan map[string]string, 1)
+
+// func treatJobs() error {
+//         for {
+//                 select {
+//                 case job := <-jobs:
+//                         for q, v := range job {
+//                                 if err := download(v, q); err != nil {
+//                                         log.Println(err)
+//                                 }
+//                         }
+//                 default:
+//
+//                 }
+//         }
+// }
+
+// download will download youtube video by src and qulity,
 // src is the video url or video id,
 // quality can be hd720 or hd1080 etc., default is medium
-func Download(src string, quality string) error {
+func download(src string, quality string) error {
 	dl := ytdl.Downloader{}
 	// dl.Debug = true
 	v, err := dl.Client.GetVideo(src)
