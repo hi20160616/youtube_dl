@@ -2,7 +2,9 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
@@ -16,6 +18,21 @@ import (
 )
 
 const address = ":1234"
+
+var (
+	jobs   = make(map[string]string)
+	sema   = make(chan struct{}, 1)
+	retry  = 5
+	dlPath = "Downloads"
+)
+
+func init() {
+	root, err := os.Getwd()
+	if err != nil {
+		log.Println(err)
+	}
+	dlPath = filepath.Join(root, dlPath)
+}
 
 func main() {
 	ctx, cancel := context.WithCancel(context.Background())
@@ -58,12 +75,6 @@ func ytdlHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-var (
-	jobs  = make(map[string]string)
-	sema  = make(chan struct{}, 1)
-	retry = make(chan struct{}, 5)
-)
-
 func treatJobs() error {
 	for {
 		for v, q := range jobs {
@@ -71,6 +82,7 @@ func treatJobs() error {
 			if err := download(v, q); err != nil {
 				log.Println(err)
 			}
+			log.Printf("video: %s download done.", v)
 			<-sema
 		}
 	}
@@ -80,13 +92,19 @@ func treatJobs() error {
 // src is the video id,
 // quality can be hd720 or hd1080 etc., default is medium
 func download(id string, quality string) error {
-	retry <- struct{}{}
-	defer func() { <-retry }()
-	defer func() { delete(jobs, id) }()
+	defer func() {
+		cleanup()
+		delete(jobs, id)
+	}()
 	dl := ytdl.Downloader{}
 	// dl.Debug = true
 	v, err := dl.Client.GetVideo(id)
 	if err != nil {
+		log.Printf("err video: %s, %v", id, err)
+		retry -= 1
+		if retry == 0 {
+			return errors.New("retry many times, pass this video: " + id + ".")
+		}
 		return download(id, quality)
 	}
 
@@ -94,18 +112,21 @@ func download(id string, quality string) error {
 		quality = "hd720"
 	}
 	vfmt := v.Formats.FindByQuality(quality)
-
-	root, err := os.Getwd()
-	if err != nil {
-		return err
+	if vfmt == nil {
+		if len(v.Formats) > 0 {
+			vfmt = &v.Formats[0]
+		} else {
+			return errors.New("cannot fetch video format on id" + id)
+		}
 	}
-	dl.OutputDir = filepath.Join(root, "Downloads")
 
-	if strings.HasPrefix(quality, "hd") {
+	dl.OutputDir = dlPath
+
+	if strings.HasPrefix(vfmt.Quality, "hd") {
 		if err = checkFFMPEG(); err != nil {
 			return err
 		}
-		return dl.DownloadComposite(context.Background(), "", v, quality, "mp4")
+		return dl.DownloadComposite(context.Background(), "", v, vfmt.Quality, "mp4")
 	}
 	return dl.Download(context.Background(), v, vfmt, "")
 }
@@ -113,6 +134,22 @@ func download(id string, quality string) error {
 func checkFFMPEG() error {
 	if err := exec.Command("ffmpeg", "-version").Run(); err != nil {
 		return fmt.Errorf("please check ffmpegCheck is installed correctly")
+	}
+	return nil
+}
+
+func cleanup() error {
+	files, err := ioutil.ReadDir(dlPath)
+	if err != nil {
+		return err
+	}
+	for _, f := range files {
+		fExt := filepath.Ext(f.Name())
+		if fExt == ".m4a" || fExt == ".m4v" {
+			if err = os.Remove(f.Name()); err != nil {
+				return err
+			}
+		}
 	}
 	return nil
 }
