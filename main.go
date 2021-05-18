@@ -34,6 +34,10 @@ func main() {
 		defer cancel()
 		return treatJobs()
 	})
+
+	if err := g.Wait(); err != nil {
+		log.Printf("main: %#v", err)
+	}
 }
 
 func ytdlHandler(w http.ResponseWriter, r *http.Request) {
