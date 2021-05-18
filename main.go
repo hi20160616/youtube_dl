@@ -51,12 +51,17 @@ func ytdlHandler(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 		}
 		jobs[id] = q
+		fmt.Fprintf(w, "Download videos list: \n")
+		for jv, jq := range jobs {
+			fmt.Fprintf(w, "video id: %s, video quality: %s\n", jv, jq)
+		}
 	}
 }
 
 var (
-	jobs = make(map[string]string)
-	sema = make(chan struct{}, 1)
+	jobs  = make(map[string]string)
+	sema  = make(chan struct{}, 1)
+	retry = make(chan struct{}, 5)
 )
 
 func treatJobs() error {
@@ -72,14 +77,17 @@ func treatJobs() error {
 }
 
 // download will download youtube video by src and qulity,
-// src is the video url or video id,
+// src is the video id,
 // quality can be hd720 or hd1080 etc., default is medium
-func download(src string, quality string) error {
+func download(id string, quality string) error {
+	retry <- struct{}{}
+	defer func() { <-retry }()
+	defer func() { delete(jobs, id) }()
 	dl := ytdl.Downloader{}
 	// dl.Debug = true
-	v, err := dl.Client.GetVideo(src)
+	v, err := dl.Client.GetVideo(id)
 	if err != nil {
-		return err
+		return download(id, quality)
 	}
 
 	if quality == "" {
