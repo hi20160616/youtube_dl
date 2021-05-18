@@ -46,7 +46,6 @@ func ytdlHandler(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusInternalServerError)
 		}
-		// jobs <- map[string]string{id: q}
 		jobs[id] = q
 	}
 }
@@ -67,23 +66,6 @@ func treatJobs() error {
 		}
 	}
 }
-
-// var jobs chan map[string]string = make(chan map[string]string, 1)
-
-// func treatJobs() error {
-//         for {
-//                 select {
-//                 case job := <-jobs:
-//                         for q, v := range job {
-//                                 if err := download(v, q); err != nil {
-//                                         log.Println(err)
-//                                 }
-//                         }
-//                 default:
-//
-//                 }
-//         }
-// }
 
 // download will download youtube video by src and qulity,
 // src is the video url or video id,
