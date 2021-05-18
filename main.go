@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
@@ -22,7 +21,7 @@ const address = ":1234"
 var (
 	jobs   = make(map[string]string)
 	sema   = make(chan struct{}, 1)
-	retry  = 5
+	retry  = 10
 	dlPath = "Downloads"
 )
 
@@ -93,7 +92,7 @@ func treatJobs() error {
 // quality can be hd720 or hd1080 etc., default is medium
 func download(id string, quality string) error {
 	defer func() {
-		cleanup()
+		// cleanup()
 		delete(jobs, id)
 	}()
 	dl := ytdl.Downloader{}
@@ -138,18 +137,19 @@ func checkFFMPEG() error {
 	return nil
 }
 
-func cleanup() error {
-	files, err := ioutil.ReadDir(dlPath)
-	if err != nil {
-		return err
-	}
-	for _, f := range files {
-		fExt := filepath.Ext(f.Name())
-		if fExt == ".m4a" || fExt == ".m4v" {
-			if err = os.Remove(f.Name()); err != nil {
-				return err
-			}
-		}
-	}
-	return nil
-}
+// cannot work right on windows cause files on use
+// func cleanup() error {
+//         files, err := ioutil.ReadDir(dlPath)
+//         if err != nil {
+//                 return err
+//         }
+//         for _, f := range files {
+//                 fExt := filepath.Ext(f.Name())
+//                 if fExt == ".m4a" || fExt == ".m4v" {
+//                         if err = os.Remove(f.Name()); err != nil {
+//                                 return err
+//                         }
+//                 }
+//         }
+//         return nil
+// }
