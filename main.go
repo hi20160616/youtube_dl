@@ -87,7 +87,32 @@ func treatJobs() error {
 	}
 }
 
-// download will download youtube video by src and qulity,
+func download2(id string, quality string) error {
+	defer func() {
+		// cleanup()
+		delete(jobs, id)
+	}()
+	id, err := youtube.ExtractVideoID(id)
+	if err != nil {
+		return err
+	}
+	f720 := "bestvideo[height <=? 720][ext=mp4]+bestaudio[ext=m4a]/best[height <=? 720]/best"
+	// f1080 := "bestvideo[height <=? 1080][ext=mp4]+bestaudio[ext=m4a]/best[height <=? 1080]/best"
+	cmd := &exec.Cmd{}
+	// https://github.com/ytdl-org/youtube-dl
+	cmd = exec.Command("youtube-dl", "-o", dlPath+"/%(title)s.%(ext)s", "-f", f720, id)
+	cmd.Stdout = os.Stdout
+	// var stdBuffer bytes.Buffer
+	// mw := io.MultiWriter(os.Stdout, &stdBuffer)
+	// cmd.Stdout = mw
+	// cmd.Stderr = mw
+	if err := cmd.Run(); err != nil {
+		log.Printf("%v", err)
+	}
+	return nil
+}
+
+// download will download youtube video by src and quality,
 // src is the video id,
 // quality can be hd720 or hd1080 etc., default is medium
 func download(id string, quality string) error {

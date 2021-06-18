@@ -8,7 +8,7 @@ import (
 
 func TestDownload(t *testing.T) {
 	// if err := download("https://www.youtube.com/watch?v=sxnjarLK5l4", ""); err != nil {
-	if err := download("https://www.youtube.com/watch?v=eK4xFueaUsI", ""); err != nil {
+	if err := download2("https://www.youtube.com/watch?v=eK4xFueaUsI", ""); err != nil {
 		t.Error(err)
 	}
 }
