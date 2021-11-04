@@ -8,6 +8,4 @@ ffmpeg installed.
 
 # TODO
 
-- [ ] add home page with a download form
-- [ ] ffmpeg package for windows
-- [ ] get stdout and pretty print.
+- [ ] make it as youtube download server
